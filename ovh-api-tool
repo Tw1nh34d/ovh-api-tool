@@ -1,0 +1,120 @@
+#!/usr/bin/python
+
+import json
+import ovh
+import sys
+import argparse
+import os
+
+file_name =  os.path.basename(sys.argv[0])
+conf_file = file_name+".rc"
+
+
+def config_read():
+    with open(conf_file) as file:
+        data = json.load(file)
+        api_endpoint = (data.get("endpoint"))
+        api_apKey = (data.get("application_key"))
+        api_secret = (data.get("application_secret"))
+        api_cKey = (data.get("consumer_key"))
+        return api_endpoint,api_apKey,api_secret,api_cKey
+
+
+def argparse_readwrite():
+    parser = argparse.ArgumentParser(prog=file_name, description='Read or alter dns objects via OVH api')
+    subparsers = parser.add_subparsers(help='mode', dest='mode')
+
+    # Read options
+    parser_read = subparsers.add_parser("read", 
+                                          help="Get object properties")
+
+    parser_read.add_argument("-z", 
+                                "--zone", 
+                                required=True, 
+                                help="zoneName, e.g. domain.com")
+
+    parser_read.add_argument("-f", 
+                                "--fieldtype", 
+                                required=True, 
+                                help="fieldType, e.g. TLSA")
+
+    
+    # Write options
+    parser_write = subparsers.add_parser("write", 
+                                help="Alter object properties")
+
+    parser_write.add_argument("-z", 
+                                "--zone", 
+                                required=True,
+                                help="zoneName, e.g. domain.com")
+
+    parser_write.add_argument("-i", 
+                                "--recordid",
+                                required=True,
+                                help="recordid of record")
+
+    parser_write.add_argument("-t", 
+                                "--target",
+                                required=True,
+                                help="target of record")
+                                
+
+    args = parser.parse_args()
+  
+
+
+    if args.mode == 'write': 
+        printwrite(args.zone, args.recordid, args.target)
+        writedata(args.zone, args.recordid, args.target)
+    elif args.mode == 'read':
+        printread(args.zone, args.fieldtype)
+        readdata(args.zone, args.fieldtype)
+
+
+def printwrite(zone, recordid, target): 
+        print recordid
+        print target
+
+
+def printread(zone, fieldtype):
+        print "Search criteria:\n"
+        print "ZoneName: "+zone+""
+        print "FieldType: "+fieldtype+"\n"
+
+
+def readdata(zone, fieldType):
+    client = ovh.Client(
+        endpoint=api_endpoint,
+        application_key=api_apKey,
+        application_secret=api_secret, 
+        consumer_key=api_cKey,
+    )
+
+    try:
+        result = client.get('/domain/zone/'+zone+'/record', fieldType=fieldType)
+        for record in result:
+            content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
+            print json.dumps(content, indent=4)
+    except ovh.exceptions.ResourceNotFoundError:
+        print "Something went wrong...!\nPlease check zoneName and/or FieldType"
+    except ovh.exceptions.BadParametersError:
+        print "FieldType not found...!"
+
+
+def writedata(zone, recordid, target):
+    client = ovh.Client(
+        endpoint=api_endpoint,
+        application_key=api_apKey,
+        application_secret=api_secret,
+        consumer_key=api_cKey,
+    )
+    result = client.put('/domain/zone/'+zone+'/record/{}'.format(recordid),target=target)
+
+if __name__ == "__main__":
+    try:
+        api_endpoint,api_apKey,api_secret,api_cKey = config_read()
+        argparse_readwrite()
+    except IOError:
+        print "Config file "+conf_file+" not found...!"
+    except TypeError:
+        print "Config file "+conf_file+" not found...!"

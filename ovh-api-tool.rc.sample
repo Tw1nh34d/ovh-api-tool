@@ -1,0 +1,6 @@
+{
+        "endpoint": "ovh-eu",
+        "application_key": "<akey>",
+        "application_secret": "<secret>",
+        "consumer_key": "<ckey>"
+}

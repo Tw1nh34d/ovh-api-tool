@@ -5,21 +5,9 @@ import ovh
 import sys
 import argparse
 import os
-import imp
 
 file_name =  os.path.basename(sys.argv[0])
 conf_file = file_name+".rc"
-
-
-def check_modules():
-    modules = ["sys", "os", "argparse"]
-    for m in modules:
-        try:
-            imp.find_module(m)
-            found = True
-        except ImportError:
-            found = False
-        print found
 
 
 def config_read():
@@ -84,16 +72,16 @@ def argparse_readwrite():
 
 
 def printwrite(zone, recordid, target): 
-        print "Write criteria:\n"
-        print "ZoneName: "+zone+""
-        print "Id: "+recordid+""
-        print "Target: "+target+""
+        print("Write criteria:\n")
+        print("ZoneName: "+zone+"")
+        print("Id: "+recordid+"")
+        print("Target: "+target+"")
 
 
 def printread(zone, fieldtype):
-        print "Search criteria:\n"
-        print "ZoneName: "+zone+""
-        print "FieldType: "+fieldtype+"\n"
+        print("Search criteria:\n")
+        print("ZoneName: "+zone+"")
+        print("FieldType: "+fieldtype+"\n")
 
 
 def readdata(zone, fieldtype):
@@ -108,11 +96,11 @@ def readdata(zone, fieldtype):
         result = client.get('/domain/zone/'+zone+'/record', fieldType=fieldtype)
         for record in result:
             content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
-            print json.dumps(content, indent=4)
+            print(json.dumps(content, indent=4))
     except ovh.exceptions.ResourceNotFoundError:
-        print "Something went wrong...!\nPlease check zoneName and/or FieldType"
+        print("Something went wrong...!\nPlease check zoneName and/or FieldType")
     except ovh.exceptions.BadParametersError:
-        print "FieldType not found...!"
+        print("FieldType not found...!")
 
 
 def writedata(zone, recordid, target):
@@ -125,28 +113,12 @@ def writedata(zone, recordid, target):
     result = client.put('/domain/zone/'+zone+'/record/{}'.format(recordid),target=target)
 
 
-def getid():
-    client = ovh.Client(
-        endpoint=api_endpoint,
-        application_key=api_apKey,
-        application_secret=api_secret,
-        consumer_key=api_cKey,
-    )
-    #result = client.get('/me/api/credential', 
-    #applicationId="bash-cli",
-    #status='validated',
-    #)
-    result = client.get('/me/api/application')
-
-
 if __name__ == "__main__":
     try:
-        check_modules()
         api_endpoint,api_apKey,api_secret,api_cKey = config_read()
         argparse_readwrite()
-    #    getid()
         
     except IOError:
-        print "Config file "+conf_file+" not found...!"
+        print("Config file "+conf_file+" not found...!")
     except TypeError:
-        print "Config file "+conf_file+" not found...!"
+        print("Config file "+conf_file+" not found...!")

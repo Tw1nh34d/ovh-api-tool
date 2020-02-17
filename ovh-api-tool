@@ -33,10 +33,13 @@ def argparse_readwrite():
                                 required=True, 
                                 help="zoneName, e.g. domain.com")
 
-    parser_read.add_argument("-f", 
-                                "--fieldtype", 
-                                required=True, 
+    parser_read.add_argument("-f",
+                                "--fieldtype",
                                 help="fieldType, e.g. TLSA")
+
+    parser_read.add_argument("-i",
+                                "--recordid",
+                                help="recordid")
 
     
     # Write options
@@ -67,8 +70,11 @@ def argparse_readwrite():
         printwrite(args.zone, args.recordid, args.target)
         writedata(args.zone, args.recordid, args.target)
     elif args.mode == 'read':
-        printread(args.zone, args.fieldtype)
-        readdata(args.zone, args.fieldtype)
+        if args.fieldtype:
+            printread(args.zone, args.fieldtype)
+            read_all_data(args.zone, args.fieldtype)
+        elif args.recordid:
+            read_data(args.zone, args.recordid)
 
 
 def printwrite(zone, recordid, target): 
@@ -84,7 +90,7 @@ def printread(zone, fieldtype):
         print("FieldType: "+fieldtype+"\n")
 
 
-def readdata(zone, fieldtype):
+def read_all_data(zone, fieldtype):
     client = ovh.Client(
         endpoint=api_endpoint,
         application_key=api_apKey,
@@ -97,6 +103,23 @@ def readdata(zone, fieldtype):
         for record in result:
             content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
             print(json.dumps(content, indent=4))
+    except ovh.exceptions.ResourceNotFoundError:
+        print("Something went wrong...!\nPlease check zoneName and/or FieldType")
+    except ovh.exceptions.BadParametersError:
+        print("FieldType not found...!")
+
+
+def read_data(zone, recordid):
+    client = ovh.Client(
+        endpoint=api_endpoint,
+        application_key=api_apKey,
+        application_secret=api_secret,
+        consumer_key=api_cKey,
+    )
+
+    try:
+        content = client.get('/domain/zone/'+zone+'/record/{}'.format(recordid))
+        print(json.dumps(content, indent=4))
     except ovh.exceptions.ResourceNotFoundError:
         print("Something went wrong...!\nPlease check zoneName and/or FieldType")
     except ovh.exceptions.BadParametersError:

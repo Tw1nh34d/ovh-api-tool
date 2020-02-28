@@ -8,7 +8,8 @@ import os
 import re
 
 file_name =  os.path.basename(sys.argv[0])
-conf_file = file_name+".rc"
+inst_dir = "/opt/ovh-api-tool/"
+conf_file = inst_dir+file_name+".rc"
 
 
 def config_read():

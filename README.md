@@ -32,13 +32,19 @@ optional arguments:
 ```
 ## Read options
 ```
-usage: ovh-api-tool read [-h] -z ZONE -f FIELDTYPE
+usage: ovh-api-tool read [-h] -z ZONE [-f FIELDTYPE] [-i RECORDID] [-p PROP]
+                         [-v]
 
 optional arguments:
   -h, --help            show this help message and exit
   -z ZONE, --zone ZONE  zoneName, e.g. domain.com
   -f FIELDTYPE, --fieldtype FIELDTYPE
                         fieldType, e.g. TLSA
+  -i RECORDID, --recordid RECORDID
+                        recordid
+  -p PROP, --prop PROP  Property, e.g. target, fieldType, id, zone, ttl,
+                        subDomain
+  -v, --verbose         Verbose mode
 ```
 ## Write options
 ```
@@ -51,4 +57,20 @@ optional arguments:
                         recordid of record
   -t TARGET, --target TARGET
                         target of record
+```
+
+# tlsa-check
+```
+usage: tlsa-check [-h] -z ZONENAME -i RECORDID [-a] [-v]
+
+Comparing saved/actual hash for one TLSA record
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -z ZONENAME, --zonename ZONENAME
+                        zoneName, e.g. domain.com
+  -i RECORDID, --recordid RECORDID
+                        recordid
+  -a, --autoupdate      Automatically update the record if missmatch
+  -v, --verbose         Verbose output
 ```

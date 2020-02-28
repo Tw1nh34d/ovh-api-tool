@@ -5,6 +5,7 @@ import ovh
 import sys
 import argparse
 import os
+import re
 
 file_name =  os.path.basename(sys.argv[0])
 conf_file = file_name+".rc"
@@ -18,6 +19,16 @@ def config_read():
         api_secret = (data.get("application_secret"))
         api_cKey = (data.get("consumer_key"))
         return api_endpoint,api_apKey,api_secret,api_cKey
+
+
+def client_connect():
+    client = ovh.Client(
+        endpoint=api_endpoint,
+        application_key=api_apKey,
+        application_secret=api_secret,
+        consumer_key=api_cKey,
+    )
+    return client
 
 
 def argparse_readwrite():
@@ -36,10 +47,19 @@ def argparse_readwrite():
     parser_read.add_argument("-f",
                                 "--fieldtype",
                                 help="fieldType, e.g. TLSA")
-
+    
     parser_read.add_argument("-i",
                                 "--recordid",
                                 help="recordid")
+    
+    parser_read.add_argument("-p",
+                                "--prop",
+                                help="Property, e.g. target, fieldType, id, zone, ttl, subDomain")
+    
+    parser_read.add_argument("-v",
+                                "--verbose",
+                                action="store_true",
+                                help="Verbose mode")
 
     
     # Write options
@@ -71,10 +91,11 @@ def argparse_readwrite():
         writedata(args.zone, args.recordid, args.target)
     elif args.mode == 'read':
         if args.fieldtype:
-            printread(args.zone, args.fieldtype)
-            read_all_data(args.zone, args.fieldtype)
+            if args.verbose:
+                printread(args.zone, args.fieldtype)
+            read_all_data(args.zone, args.fieldtype, args.verbose)
         elif args.recordid:
-            read_data(args.zone, args.recordid)
+            read_data(args.zone, args.recordid, args.prop)
 
 
 def printwrite(zone, recordid, target): 
@@ -90,18 +111,36 @@ def printread(zone, fieldtype):
         print("FieldType: "+fieldtype+"\n")
 
 
-def read_all_data(zone, fieldtype):
-    client = ovh.Client(
-        endpoint=api_endpoint,
-        application_key=api_apKey,
-        application_secret=api_secret, 
-        consumer_key=api_cKey,
-    )
+def read_all_data(zone, fieldtype, verbose):
+    client = client_connect()
 
     try:
         result = client.get('/domain/zone/'+zone+'/record', fieldType=fieldtype)
-        for record in result:
-            content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
+        if verbose:
+            for record in result:
+                content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
+                print(json.dumps(content, indent=4))
+        else:
+            #clean = re.sub(r'(?P<one>[0-9]+)', '"id": "\g<one>"', re.sub(r'[][]', '', str(result)))
+            print( json.dumps( dict( { "data": [ dict({"{#ID}":x}) for x in result] } ), indent=4 ))
+    except ovh.exceptions.ResourceNotFoundError:
+        print("Something went wrong...!\nPlease check zoneName and/or FieldType")
+    except ovh.exceptions.BadParametersError:
+        print("FieldType not found...!")
+
+
+def read_data(zone, recordid, prop):
+    client = client_connect()
+
+    try:
+        content = client.get('/domain/zone/'+zone+'/record/{}'.format(recordid))
+        if prop:
+            try:        
+                data = json.loads(json.dumps(content))
+                print(data[prop])
+            except KeyError:
+                print("Property not found...! Try: target, fieldType, id, zone, ttl, subDomain")
+        else:
             print(json.dumps(content, indent=4))
     except ovh.exceptions.ResourceNotFoundError:
         print("Something went wrong...!\nPlease check zoneName and/or FieldType")
@@ -109,30 +148,8 @@ def read_all_data(zone, fieldtype):
         print("FieldType not found...!")
 
 
-def read_data(zone, recordid):
-    client = ovh.Client(
-        endpoint=api_endpoint,
-        application_key=api_apKey,
-        application_secret=api_secret,
-        consumer_key=api_cKey,
-    )
-
-    try:
-        content = client.get('/domain/zone/'+zone+'/record/{}'.format(recordid))
-        print(json.dumps(content, indent=4))
-    except ovh.exceptions.ResourceNotFoundError:
-        print("Something went wrong...!\nPlease check zoneName and/or FieldType")
-    except ovh.exceptions.BadParametersError:
-        print("FieldType not found...!")
-
-
 def writedata(zone, recordid, target):
-    client = ovh.Client(
-        endpoint=api_endpoint,
-        application_key=api_apKey,
-        application_secret=api_secret,
-        consumer_key=api_cKey,
-    )
+    client = client_connect()
     result = client.put('/domain/zone/'+zone+'/record/{}'.format(recordid),target=target)
 
 

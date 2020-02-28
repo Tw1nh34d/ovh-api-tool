@@ -1,0 +1,78 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import subprocess
+import argparse
+import json
+import re
+
+cert = "/etc/pki/tls/certs/mail.nixdorf.com.crt"
+ovhapitool = "/opt/ovh-api-tool/ovh-api-tool"
+
+def getcerthash(verbose):
+    create_hash = str(subprocess.check_output("openssl x509 -in " +cert+ " -outform DER | openssl sha256", shell=True))
+    certhash = re.sub(r'.*\ |\\n.*', '', create_hash)
+    if verbose:
+        print('Hash of locally saved CERT: {}'.format(certhash))
+    return certhash
+
+
+def getdata(zonename, recordid, verbose):
+    try:
+        parsed_json = json.loads(subprocess.check_output(""+ovhapitool+" read -z "+zonename+" -i "+recordid+"", shell=True)) # Getting data
+        split_value = re.split('\s+', parsed_json.get('target'))  # Getting only hash from list
+        tlsa_hash = split_value[3]
+        if verbose:
+            print('\nResult for ID {}:\n\n'.format(recordid)+json.dumps(parsed_json, indent=4, sort_keys=True))
+            print('\nHash of TLSA record:        {}'.format(tlsa_hash))
+        return tlsa_hash
+    except json.decoder.JSONDecodeError:
+        print("Something went wrong, no data fetched from dnszone")
+
+def update_record(ovhapitool, zonename, recordid, certhash, autoupdate, verbose):
+    if (autoupdate and verbose ):
+        print("\nUpdate Command: (For automated update to dns zone use the \"-a\" option)")
+        print('{} write -z {} -i {} -t "3 0 1 {}"'.format(ovhapitool,zonename,recordid,certhash))
+    elif autoupdate:
+        subprocess.Popen([ ovhapitool, "write", "-z", zonename, "-i", recordid, "-t", "3 0 1 {}".format(certhash) ]) # Updating Record
+
+def argparse_options():
+    parser = argparse.ArgumentParser(prog="tlsa-check", description='Comparing saved/actual hash for one TLSA record')
+
+    parser.add_argument("-z",
+                            "--zonename",
+                            required=True,
+                            help="zoneName, e.g. domain.com")
+
+    parser.add_argument("-i",
+                            "--recordid",
+                            required=True,
+                            help="recordid")
+    
+    parser.add_argument("-a",
+                            "--autoupdate",
+                            action="store_true",
+                            help="Automatically update the record if missmatch")
+
+    parser.add_argument("-v",
+                            "--verbose",
+                            action="store_true",
+                            help="Verbose output")
+
+    args = parser.parse_args()
+
+    if args.recordid:
+        tlsa_hash = getdata(args.zonename, args.recordid, args.verbose)
+        certhash = getcerthash(args.verbose)
+
+        if certhash == tlsa_hash:
+            print("Match: TRUE" )
+            sys.exit(0)
+        else:
+            print("Match: FALSE")
+            update_record(ovhapitool, args.zonename, args.recordid, certhash, args.autoupdate, args.verbose)
+            sys.exit(1)
+        
+if __name__ == "__main__":
+          argparse_options()

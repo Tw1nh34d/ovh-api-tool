@@ -8,8 +8,7 @@ import os
 import re
 
 file_name =  os.path.basename(sys.argv[0])
-inst_dir = "/opt/ovh-api-tool/"
-conf_file = inst_dir+file_name+".rc"
+conf_file = "/usr/local/etc/"+file_name+".rc"
 
 
 def config_read():
@@ -94,9 +93,9 @@ def argparse_readwrite():
         if args.fieldtype:
             if args.verbose:
                 printread(args.zone, args.fieldtype)
-            read_all_data(args.zone, args.fieldtype, args.verbose)
+            print(json.dumps(read_all_data(args.zone, args.fieldtype, args.verbose, args.prop), indent=4))
         elif args.recordid:
-            read_data(args.zone, args.recordid, args.prop)
+            print(read_data(args.zone, args.recordid, args.prop))
 
 
 def printwrite(zone, recordid, target): 
@@ -112,18 +111,22 @@ def printread(zone, fieldtype):
         print("FieldType: "+fieldtype+"\n")
 
 
-def read_all_data(zone, fieldtype, verbose):
+def read_all_data(zone, fieldtype, verbose, prop):
+    content = []
     client = client_connect()
 
     try:
         result = client.get('/domain/zone/'+zone+'/record', fieldType=fieldtype)
+        if prop:
+            prop = prop
+        else:
+            prop = "subDomain"
         if verbose:
             for record in result:
-                content = client.get('/domain/zone/'+zone+'/record/{}'.format(record))
-                print(json.dumps(content, indent=4))
-        else:
-            #clean = re.sub(r'(?P<one>[0-9]+)', '"id": "\g<one>"', re.sub(r'[][]', '', str(result)))
-            print( json.dumps( dict( { "data": [ dict({"{#ID}":x}) for x in result] } ), indent=4 ))
+                content.append(client.get('/domain/zone/'+zone+'/record/{}'.format(record)))
+            return content
+        elif prop:
+            return dict( { "data": [ dict({"{#RECORDID}":str(record), "{#PROPERTY}":read_data(zone, record, prop)}) for record in result ] } )
     except ovh.exceptions.ResourceNotFoundError:
         print("Something went wrong...!\nPlease check zoneName and/or FieldType")
     except ovh.exceptions.BadParametersError:
@@ -138,11 +141,11 @@ def read_data(zone, recordid, prop):
         if prop:
             try:        
                 data = json.loads(json.dumps(content))
-                print(data[prop])
+                return data[prop]
             except KeyError:
                 print("Property not found...! Try: target, fieldType, id, zone, ttl, subDomain")
         else:
-            print(json.dumps(content, indent=4))
+            return json.dumps(content, indent=4)
     except ovh.exceptions.ResourceNotFoundError:
         print("Something went wrong...!\nPlease check zoneName and/or FieldType")
     except ovh.exceptions.BadParametersError:

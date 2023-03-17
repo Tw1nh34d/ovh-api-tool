@@ -155,6 +155,7 @@ def read_data(zone, recordid, prop):
 def writedata(zone, recordid, target):
     client = client_connect()
     result = client.put('/domain/zone/'+zone+'/record/{}'.format(recordid),target=target)
+    client.post('/domain/zone/'+zone+'/refresh')
 
 
 if __name__ == "__main__":
